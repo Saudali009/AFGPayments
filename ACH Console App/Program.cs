@@ -1,6 +1,7 @@
 ﻿using ChoETL.NACHA;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,7 +23,8 @@ namespace ACH_Console_App
                 config.ReferenceCode = "ALLIANCE FUNDING GROUP LLC.";
 
                 string fileName = $"ACH_{DateTime.Now.Millisecond}.txt";
-                using (ChoNACHAWriter nachaWriter = new ChoNACHAWriter(fileName, config))
+                MemoryStream stream = new MemoryStream();
+                using (ChoNACHAWriter nachaWriter = new ChoNACHAWriter(stream, config))
                 {
                     using (ChoNACHABatchWriter batchWriter = nachaWriter.CreateBatch(200))
                     {
@@ -32,22 +34,27 @@ namespace ACH_Console_App
                         decimal paymentAmount = 120.55M;
                         string individualIDNumber = "CUST# 1224";
                         string individualIDName = "Saud Ali";
-                        ChoNACHAEntryDetailWriter creditEntry = batchWriter.CreateDebitEntryDetail(transactionCode, routingNumber, accountNumber,
-                            paymentAmount, individualIDNumber, individualIDName, "");
-                        creditEntry.CreateAddendaRecord("HOME BUILDING MATERIAL");
-                        creditEntry.Close();
 
-                        ChoNACHAEntryDetailWriter creditEntry2 = batchWriter.CreateDebitEntryDetail(transactionCode, routingNumber, accountNumber,
-                           paymentAmount, individualIDNumber, individualIDName, "");
-                        creditEntry2.CreateAddendaRecord("MAJOR CLEANUP INC. ");
-                        creditEntry2.Close();
 
+                        for (int i = 0; i < 5; i++)
+                        {
+                            ChoNACHAEntryDetailWriter creditEntry = batchWriter.CreateDebitEntryDetail(20, "123456789", "1313131313", 22.505M, "ID Number", "ID Name", "Desc Data");
+                            creditEntry.CreateAddendaRecord("HOME BUILDING MATERIAL");
+                            creditEntry.Close();
+                        }
                         batchWriter.Close();
                         batchWriter.Dispose();
                     }
                     nachaWriter.Close();
                     nachaWriter.Dispose();
                 }
+
+                var fileReader = new ChoNACHAReader(stream); //to read file
+                //var fileReaderJson = Newtonsoft.Json.JsonConvert.SerializeObject(fileReader); // added Newtonsoft for converting object to Json 
+                byte[] fileByteArray = stream.ToArray(); //converted Json object to byte array
+
+                var base64OfFile = Convert.ToBase64String(fileByteArray); //converted byte array to base64
+
             }
             catch (Exception ex)
             {
