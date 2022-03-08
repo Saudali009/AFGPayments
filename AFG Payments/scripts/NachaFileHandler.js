@@ -1,13 +1,11 @@
-﻿function downloadNACHAFile() {
-    console.log("Trying to download NACHA file for current Batch.");
+﻿function downloadNACHAFile() {    
     try {
-        Xrm.Utility.showProgressIndicator("Downloading NACHA file. Please Wait..");
-        var annotationId = Xrm.Page.data.entity.getId().replace('{', '').replace('}', '');
-        getDocumentDetails(annotationId);
+        var batchId = Xrm.Page.data.entity.getId().replace('{', '').replace('}', '');
+        getDocumentDetails(batchId);
+        createNACHADownloadLog(batchId, 1);
     }
-
     catch (error) {
-        Xrm.Utility.closeProgressIndicator();
+        createNACHADownloadLog(batchId, 2);
         console.log("Error occured while calling an action: " + error.message);
     }
 }
@@ -27,7 +25,6 @@ function getDocumentDetails(annotationId) {
         "</fetch>";
 
     var encodedFetchXML = encodeURIComponent(fetchXML);
-    console.log("Encoded Fetch XML is" + encodedFetchXML);
     var req = new XMLHttpRequest();
     req.open("GET", Xrm.Page.context.getClientUrl() + "/api/data/v9.1/annotations?fetchXml=" + encodedFetchXML, false);
     req.setRequestHeader("OData-MaxVersion", "4.0");
@@ -45,23 +42,22 @@ function getDocumentDetails(annotationId) {
                 if (documentbody != null && filename != null) {
                     downloadFileInBrowser(filename, documentbody);
                 } else {
-                    Xrm.Utility.closeProgressIndicator();
+                    createNACHADownloadLog(batchId, 2);
                     Xrm.Utility.alertDialog("File corrupted, please try again.");
                 }
             } else {
-                Xrm.Utility.closeProgressIndicator();
+                createNACHADownloadLog(batchId, 2);
                 Xrm.Utility.alertDialog("Unable to find NACHA file, please create again.");
             }
-            
+
         } else {
-            Xrm.Utility.closeProgressIndicator();
+            createNACHADownloadLog(batchId, 2);
             Xrm.Utility.alertDialog(req.statusText);
         }
     }
 }
 
 function downloadFileInBrowser(filename, documentbody) {
-    console.log("Trying to download file in browser from details.");
     var ID = "DownloadLink";
     var a = document.createElement("a");
     a.setAttribute("download", filename)
@@ -71,5 +67,21 @@ function downloadFileInBrowser(filename, documentbody) {
     document.getElementsByTagName("body")[0].append(a);
     a.click();
     a.remove();
-    Xrm.Utility.closeProgressIndicator();
+}
+
+function createNACHADownloadLog(batchId, status) {
+    console.log("Trying to create download file log");
+    var entity = {};
+    entity.afg_accesseddate = new Date().toISOString();
+    entity["afg_Batch@odata.bind"] = "/afg_batchs(" + batchId + ")";
+    entity.afg_downloadstatus = status;
+
+    Xrm.WebApi.online.createRecord("afg_nachadownloadtracking", entity).then(
+        function success(result) {
+            console.log("Log created successfully!");
+        },
+        function (error) {
+            console.log("Exception occured while creating a log" + error.message);
+        }
+    );
 }

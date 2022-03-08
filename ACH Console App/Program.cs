@@ -15,10 +15,10 @@ namespace ACH_Console_App
             try
             {
                 ChoNACHAConfiguration config = new ChoNACHAConfiguration();
-                config.BatchNumber = Convert.ToUInt32("1001");
-                config.DestinationBankRoutingNumber = "123456789";
-                config.OriginatingCompanyId = "123456789";
-                config.DestinationBankName = "BANK USA";
+                config.BatchNumber = 2022;
+                config.DestinationBankRoutingNumber = "0071006486";
+                config.OriginatingCompanyId = "1234567892";
+                config.DestinationBankName = "CIBC BANK USA";
                 config.OriginatingCompanyName = "ALLIANCE FUNDING GROUP";
                 config.ReferenceCode = "ALLIANCE FUNDING GROUP LLC.";
 

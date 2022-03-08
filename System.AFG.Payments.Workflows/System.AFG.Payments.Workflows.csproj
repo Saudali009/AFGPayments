@@ -48,10 +48,6 @@
       <HintPath>..\packages\ChoETL.1.2.1.28\lib\net45\ChoETL.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="ChoETL.NACHA">
-      <HintPath>..\packages\ChoETL.NACHA.1.0.2.3\lib\net452\ChoETL.NACHA.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Microsoft.Crm.Sdk.Proxy, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.CrmSdk.CoreAssemblies.9.0.2.3\lib\net452\Microsoft.Crm.Sdk.Proxy.dll</HintPath>
       <Private>False</Private>
@@ -104,6 +100,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="ILMergeOrder.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\dell\Downloads\ChoETL.NACHA-master\ChoETL.NACHA-master\ChoETL.NACHA\ChoETL.NACHA.csproj">
+      <Project>{8bdb0366-75fd-452f-9af0-e3ed320575b7}</Project>
+      <Name>ChoETL.NACHA</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

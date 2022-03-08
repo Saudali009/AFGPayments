@@ -121,39 +121,41 @@ namespace System.AFG.Payments.Workflows
             tracingService.Trace($"Trying to create NACHA file with entries : {listOfEntries.Count}");
             ChoNACHAConfiguration config = new ChoNACHAConfiguration();
             config.BatchNumber = 2022;
-            config.DestinationBankRoutingNumber = "123456789";
-            config.OriginatingCompanyId = "123456789";
-            config.DestinationBankName = "BANK USA";
+            config.DestinationBankRoutingNumber = "0071006486";
+            config.OriginatingCompanyId = "1234567892";
+            config.DestinationBankName = "CIBC BANK USA";
             config.OriginatingCompanyName = "ALLIANCE FUNDING GROUP";
             config.ReferenceCode = "ALLIANCE FUNDING GROUP LLC.";
+            config.TurnOffDestinationBankRoutingNumber = true;
+            config.TurnOffOriginatingCompanyIdValidation = true;
 
             string randomString = GenerateRandomAlphanumericString();
             string fileName = $"ACH_{GenerateRandomAlphanumericString()}.txt";
             tracingService.Trace($"Filename is generated as {fileName}");
+
             MemoryStream stream = new MemoryStream();
+            byte[] bytes = null;
             using (ChoNACHAWriter nachaWriter = new ChoNACHAWriter(stream, config))
             {
                 using (ChoNACHABatchWriter batchWriter = nachaWriter.CreateBatch(200))
                 {
-                    for (int i = 0; i < 5; i++)
+                    for (int i = 0; i < listOfEntries.Count; i++)
                     {
-                        ChoNACHAEntryDetailWriter creditEntry = batchWriter.CreateDebitEntryDetail(20, "123456789", "1313131313", 22.505M, "ID Number", "ID Name", "Desc Data");
-                        creditEntry.CreateAddendaRecord("HOME BUILDING MATERIAL");
+                        NACHAEntry entry = listOfEntries[i];
+                        ChoNACHAEntryDetailWriter creditEntry = batchWriter.CreateDebitEntryDetail(20, 
+                            entry.RoutingNumber, entry.AccountNumber, 22.505M, entry.AccountName,
+                            entry.Bank, "");
+                        creditEntry.CreateAddendaRecord(entry.ReasonOfPayment);
                         creditEntry.Close();
                     }
-
-                    batchWriter.Close();
-                    batchWriter.Dispose();
+                    batchWriter.Close();                   
                 }
                 nachaWriter.Close();
-                nachaWriter.Dispose();
+                bytes = stream.ToArray();
+                tracingService.Trace($"Byte Array length upper {bytes.Length}");
             }
 
-            var fileReader = new ChoNACHAReader(stream); //to read file
-            tracingService.Trace($"File Reader {fileReader.ToString()}");
-            byte[] fileByteArray = stream.ToArray(); //converted Json object to byte array
-            tracingService.Trace($"Byte Array length {fileByteArray.Length}");
-            var base64OfFile = Convert.ToBase64String(fileByteArray); //converted byte array to base64
+            var base64OfFile = Convert.ToBase64String(bytes); //converted byte array to base64
             if (!string.IsNullOrEmpty(base64OfFile))
             {
                 tracingService.Trace($"Trying to create Note in CRM");
