@@ -78,7 +78,7 @@ namespace System.AFG.Payments.Workflows
         public void CreateNACHAFile(IOrganizationService service, ITracingService tracingService, List<NACHAEntry> listOfEntries, Guid batchId, string batchNumber)
         {
             string batchNumberFormatted = GetStringOfLength(8, batchNumber, "0");
-            string fileName = $"ACH_{GenerateRandomAlphanumericString()}.txt";
+            string fileName = $"ACH_{GenerateRandomAlphanumericString()}.ACH";
             MemoryStream stream = new MemoryStream();
             byte[] bytes = null;
 
@@ -90,7 +90,7 @@ namespace System.AFG.Payments.Workflows
             config.DestinationBankRoutingNumber = "0071006486";
             config.OriginatingCompanyId = "2330805823";
             config.DestinationBankName = "CIBC BANK USA";
-            config.OriginatingCompanyName = "ALLIANCE FUNDING GROUP";
+            config.OriginatingCompanyName = $"ALLIANCE FUNDING GROUP";
             config.BlockingFactor = 10;
             config.TurnOffDestinationBankRoutingNumber = true;
             config.TurnOffOriginatingCompanyIdValidation = true;
@@ -168,7 +168,6 @@ namespace System.AFG.Payments.Workflows
                     for (int iteration = 0; iteration < listOfEntries.Count; iteration++)
                     {
                         NACHAEntry entry = listOfEntries[iteration];
-                        string individualIDNumber = !string.IsNullOrEmpty(entry.CustomerId) ? WithMaxLength($"CUST# {entry.CustomerId}", 15) : $"CUST# 0000";
                         string accountName = !string.IsNullOrEmpty(entry.AccountName) ? WithMaxLength(entry.AccountName, 22) : $"NOT FOUND";
                         ChoNACHAEntryDetailWriter debitEntry = batchWriter.CreateDebitEntryDetail(27,
                             entry.RoutingNumber, entry.AccountNumber, entry.Amount, string.Empty,
