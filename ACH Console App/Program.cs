@@ -1,10 +1,14 @@
 ﻿using ChoETL.NACHA;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
+//reuire namespaces
+using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Client;
+using Microsoft.Crm.Sdk.Messages;
+using System.Net;
 
 namespace ACH_Console_App
 {
@@ -14,6 +18,7 @@ namespace ACH_Console_App
         {
             try
             {
+                /**
                 ChoNACHAConfiguration config = new ChoNACHAConfiguration();
                 config.BatchNumber = 2022;
                 config.DestinationBankRoutingNumber = "0071006486";
@@ -50,11 +55,15 @@ namespace ACH_Console_App
                 }
 
                 var fileReader = new ChoNACHAReader(stream); //to read file
-                //var fileReaderJson = Newtonsoft.Json.JsonConvert.SerializeObject(fileReader); // added Newtonsoft for converting object to Json 
-                byte[] fileByteArray = stream.ToArray(); //converted Json object to byte array
+                var fileReaderJson = Newtonsoft.Json.JsonConvert.SerializeObject(fileReader); 
+                byte[] fileByteArray = stream.ToArray(); 
 
                 var base64OfFile = Convert.ToBase64String(fileByteArray); //converted byte array to base64
-
+                **/
+                string ss = DateTime.Today.ToString("yyMMdd");
+                string test = GetStringOfLength(8, "0012", "0");
+                ulong sss = Convert.ToUInt64("0000001");
+                Console.ReadKey();
             }
             catch (Exception ex)
             {
@@ -62,6 +71,63 @@ namespace ACH_Console_App
                 Console.ReadKey();
             }
         }
+
+        public static string GetStringOfLength(int totallength, string input, string charcterToAppend) {
+            return input.PadLeft(totallength, Convert.ToChar(charcterToAppend));
+        }
+        public static void WriteNumbers(int digits, int number = 0)
+        {
+            int i = (number % 10) + 1;
+            number *= 10;
+            for (; i <= 9; i++)
+            {
+                if (digits == 1)
+                    Console.WriteLine(number + i);
+                else
+                    WriteNumbers(digits - 1, number + i);
+            }
+        }
+        /**
+        public static IOrganizationService ConnectD35OnlineUsingOrgSvc()
+        {
+            IOrganizationService organizationService = null;
+
+            String username = "<username";
+            String password = "<your password>";
+
+            String url = "https://<org>.api.crm.dynamics.com/XRMServices/2011/Organization.svc";
+            try
+            {
+                ClientCredentials clientCredentials = new ClientCredentials();
+                clientCredentials.UserName.UserName = username;
+                clientCredentials.UserName.Password = password;
+
+                // For Dynamics 365 Customer Engagement V9.X, set Security Protocol as TLS12
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+                organizationService = (IOrganizationService)new OrganizationServiceProxy(new Uri(url), null, clientCredentials, null);
+
+                if (organizationService != null)
+                {
+                    Guid gOrgId = ((WhoAmIResponse)organizationService.Execute(new WhoAmIRequest())).OrganizationId;
+                    if (gOrgId != Guid.Empty)
+                    {
+                        Console.WriteLine("Connection Established Successfully...");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Failed to Established Connection!!!");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception occured - " + ex.Message);
+            }
+            return organizationService;
+
+        }
+    **/
     }
 }
 

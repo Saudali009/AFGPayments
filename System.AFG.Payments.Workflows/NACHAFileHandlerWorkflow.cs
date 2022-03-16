@@ -10,6 +10,7 @@ using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using Newtonsoft.Json;
 using System.IO;
+using ChoETL;
 
 namespace System.AFG.Payments.Workflows
 {
@@ -26,64 +27,183 @@ namespace System.AFG.Payments.Workflows
             {
                 Guid batchId = workflowContext.PrimaryEntityId;
                 string entityName = workflowContext.PrimaryEntityName;
-                tracingService.Trace($"Workflow trigger for entity {entityName} & {batchId}");
-                EntityCollection batchePayments = GetBatchedPayments(tracingService, orgService, batchId);
-                tracingService.Trace($"Payments included in this batch {batchePayments.Entities.Count}");
-                List<NACHAEntry> listOfEntries = null;
-
-                if (batchePayments != null && batchePayments.Entities.Count > 0)
-                {
-                    listOfEntries = new List<NACHAEntry>();
-                    foreach (Entity payment in batchePayments.Entities)
-                    {
-                        string paymentName = payment.Contains("afg_reasonofpayment") ? Convert.ToString(payment["afg_reasonofpayment"]) : string.Empty;
-                        tracingService.Trace($"Payment Name {paymentName}");
-                        string accountName = payment.Contains("afg_account") ? ((EntityReference)payment["afg_account"]).Name : string.Empty;
-                        tracingService.Trace($"Account Name {accountName}");
-                        int paymentType = payment.Contains("afg_paymenttype") ? ((OptionSetValue)payment["afg_paymenttype"]).Value : 346380000;
-                        tracingService.Trace($"Payment Type {paymentType}");
-                        decimal amount = ((Money)payment["afg_amount"]).Value;
-                        tracingService.Trace($"Amount {amount}");
-                        string reasonOfPayment = payment.Contains("afg_reasonofpayment") ? Convert.ToString(payment["afg_reasonofpayment"]) : string.Empty;
-                        tracingService.Trace($"Reason of Payment {reasonOfPayment}");
-                        string notes = payment.Contains("afg_note") ? Convert.ToString(payment["afg_note"]) : string.Empty;
-                        tracingService.Trace($"Notes {notes}");
-                        string bankName = payment.Contains("afg_bankrelation") ? ((EntityReference)payment["afg_bankrelation"]).Name : string.Empty;
-                        tracingService.Trace($"Bank Name {bankName}");
-                        tracingService.Trace($"Going for realted entities.");
-                        string routingNumber = payment.Contains("br.afg_routingnumber") ? Convert.ToString(((AliasedValue)payment["br.afg_routingnumber"]).Value) : string.Empty;
-                        tracingService.Trace($"Regarding : Rounting Number {routingNumber}");
-                        string accountNumber = payment.Contains("br.tf_accountno") ? Convert.ToString(((AliasedValue)payment["br.tf_accountno"]).Value) : string.Empty;
-                        tracingService.Trace($"Regarding : Account Number {accountNumber}");
-                        string branch = payment.Contains("br.tf_branchname") ? Convert.ToString(((AliasedValue)payment["br.tf_branchname"]).Value) : string.Empty;
-                        tracingService.Trace($"Regarding : branch Name {branch}");
-
-                        NACHAEntry entry = new NACHAEntry(paymentName, accountName, paymentType, amount, reasonOfPayment, notes, bankName, routingNumber, accountNumber, branch);
-                        if (entry != null)
-                        {
-                            listOfEntries.Add(entry);
-                        }
-                        else
-                        {
-                            tracingService.Trace($"Null Entry.");
-                        }
-                    }
-                }
-                else
-                {
-                    tracingService.Trace($"No payment is batched. Stopping execution.");
-                    return;
-                }
-
+                string batchNumber = GetBatchNumber(tracingService, orgService, batchId);
+                EntityCollection paymentCollection = GetBatchedPayments(tracingService, orgService, batchId);
+                List<NACHAEntry> listOfEntries = GetListOfNachaEntries(paymentCollection);
                 if (listOfEntries != null && listOfEntries.Count > 0)
                 {
                     tracingService.Trace($"Entries are ready for creation with total: {listOfEntries.Count}");
-                    CreateNACHAFile(orgService, tracingService, listOfEntries, batchId);
+                    CreateNACHAFile(orgService, tracingService, listOfEntries, batchId, batchNumber);
+                }
+                else
+                {
+                    tracingService.Trace($"No Entry Found.");
                 }
             }
             catch (Exception ex)
             {
                 tracingService.Trace($"Error encountered while creating NACHA file {ex}");
+            }
+        }
+
+        public List<NACHAEntry> GetListOfNachaEntries(EntityCollection batchePayments)
+        {
+            List<NACHAEntry> listOfEntries = new List<NACHAEntry>();
+            if (batchePayments != null && batchePayments.Entities.Count > 0)
+            {
+                foreach (Entity payment in batchePayments.Entities)
+                {
+                    string paymentName = payment.Contains("afg_reasonofpayment") ? Convert.ToString(payment["afg_reasonofpayment"]) : string.Empty;
+                    string accountName = payment.Contains("afg_account") ? ((EntityReference)payment["afg_account"]).Name : string.Empty;
+                    int paymentType = payment.Contains("afg_paymenttype") ? ((OptionSetValue)payment["afg_paymenttype"]).Value : 346380000;
+                    decimal amount = payment.Contains("afg_amount") ? Convert.ToDecimal(((Money)payment["afg_amount"]).Value) : Convert.ToDecimal(0);
+                    string reasonOfPayment = payment.Contains("afg_reasonofpayment") ? Convert.ToString(payment["afg_reasonofpayment"]) : string.Empty;
+                    string notes = payment.Contains("afg_note") ? Convert.ToString(payment["afg_note"]) : string.Empty;
+                    string bankName = payment.Contains("afg_bankrelation") ? ((EntityReference)payment["afg_bankrelation"]).Name : string.Empty;
+                    string routingNumber = payment.Contains("br.afg_routingnumber") ? Convert.ToString(((AliasedValue)payment["br.afg_routingnumber"]).Value) : string.Empty;
+                    string accountNumber = payment.Contains("br.tf_accountno") ? Convert.ToString(((AliasedValue)payment["br.tf_accountno"]).Value) : string.Empty;
+                    string branch = payment.Contains("br.tf_branchname") ? Convert.ToString(((AliasedValue)payment["br.tf_branchname"]).Value) : string.Empty;
+                    string customerId = payment.Contains("acc.afg_lplus_customerid") ? Convert.ToString(((AliasedValue)payment["acc.afg_lplus_customerid"]).Value) : string.Empty;
+
+                    NACHAEntry entry = new NACHAEntry(paymentName, accountName, customerId, paymentType, amount, reasonOfPayment, notes, bankName, routingNumber, accountNumber, branch);
+                    if (entry != null)
+                    {
+                        listOfEntries.Add(entry);
+                    }
+                }
+            }
+            return listOfEntries;
+        }
+
+        public void CreateNACHAFile(IOrganizationService service, ITracingService tracingService, List<NACHAEntry> listOfEntries, Guid batchId, string batchNumber)
+        {
+            string batchNumberFormatted = GetStringOfLength(8, batchNumber, "0");
+            string fileName = $"ACH_{GenerateRandomAlphanumericString()}.txt";
+            MemoryStream stream = new MemoryStream();
+            byte[] bytes = null;
+
+            #region Batch File Header Configuration       
+            ChoNACHAConfiguration config = new ChoNACHAConfiguration();
+            config.EntryDetailTraceSource = ChoEntryDetailTraceSource.OriginatingDFI;
+            config.ErrorMode = ChoErrorMode.IgnoreAndContinue;
+            config.BatchNumber = 0000001;
+            config.DestinationBankRoutingNumber = "0071006486";
+            config.OriginatingCompanyId = "2330805823";
+            config.DestinationBankName = "CIBC BANK USA";
+            config.OriginatingCompanyName = "ALLIANCE FUNDING GROUP";
+            config.BlockingFactor = 10;
+            config.TurnOffDestinationBankRoutingNumber = true;
+            config.TurnOffOriginatingCompanyIdValidation = true;
+
+            ChoActivator.Factory = (t, args) =>
+            {
+                if (t == typeof(ChoNACHAFileHeaderRecord))
+                {
+                    tracingService.Trace($"Processing File Header");
+                    var header = new ChoNACHAFileHeaderRecord();
+                    header.Initialize();
+                    header.PriorityCode = "01";
+                    header.FileCreationDate = DateTime.Today;
+                    header.FileCreationTime = DateTime.Now.ToLocalTime();
+                    header.RecordTypeCode = ChoRecordTypeCode.FileHeader;
+                    header.ImmediateDestination = "0071006486";
+                    header.ImmediateOrigin = "2330805823";
+                    header.FileIDModifier = Convert.ToChar("A");
+                    header.RecordSize = Convert.ToUInt16(094);
+                    header.FormatCode = Convert.ToUInt16(1);
+                    header.ImmediateDestinationName = "CIBC BANK USA";
+                    header.ImmediateOriginName = "ALLIANCE FUNDING GROUP";
+                    header.ReferenceCode = batchNumberFormatted;
+                    tracingService.Trace($"File Header Completed");
+                    return header;
+                }
+
+                if (t == typeof(ChoNACHABatchHeaderRecord))
+                {
+                    tracingService.Trace($"Processing Batch Header");
+                    var header = new ChoNACHABatchHeaderRecord();
+                    header.Initialize();
+                    header.RecordTypeCode = ChoRecordTypeCode.BatchHeader;
+                    header.ServiceClassCode = 200;
+                    header.CompanyName = "ALLIANCE FUNDING GROUP";
+                    header.CompanyDiscretionaryData = string.Empty;
+                    header.CompanyID = "2330805823";
+                    header.StandardEntryClassCode = "CCD";
+                    header.CompanyEntryDescription = "CNTRCT PMT";
+                    header.CompanyDescriptiveDate = $"PMT{DateTime.Today.ToString("yyMMdd")}";
+                    header.EffectiveEntryDate = DateTime.Now.AddDays(1);
+                    header.OriginatorStatusCode = Convert.ToChar("1");
+                    header.OriginatingDFIID = "07100648";
+                    header.BatchNumber = 0000001;
+                    tracingService.Trace($"Batch Header Completed");
+                    return header;
+                }
+                if (t == typeof(ChoNACHAAddendaRecord))
+                {
+                    tracingService.Trace($"Processing Entry Detail Record");
+                    var header = new ChoNACHAAddendaRecord();
+                    header.Initialize();
+                    header.AddendaTypeCode = 05;
+                    header.RecordTypeCode = ChoRecordTypeCode.Addenda;
+                    tracingService.Trace($"Entry Detail Completed");
+                    return header;
+                }
+                return null;
+            };
+
+            #endregion
+
+            using (ChoNACHAWriter nachaWriter = new ChoNACHAWriter(stream, config))
+            {
+                tracingService.Trace($"Processing file starting..");
+                int batchServiceClassCode = 200;
+                nachaWriter.Configuration.BatchNumber = Convert.ToUInt32(batchNumberFormatted);
+                nachaWriter.Configuration.ErrorMode = ChoErrorMode.IgnoreAndContinue;
+                using (ChoNACHABatchWriter batchWriter = nachaWriter.CreateBatch(batchServiceClassCode, standardEntryClassCode: "CCD",
+                    companyEntryDescription: "CNTRCT PMT",
+                    companyDescriptiveDate: DateTime.Today, effectiveEntryDate: DateTime.Now.AddDays(1)))
+                {
+                    tracingService.Trace($"Batch start writing");
+
+                    for (int iteration = 0; iteration < listOfEntries.Count; iteration++)
+                    {
+                        NACHAEntry entry = listOfEntries[iteration];
+                        string individualIDNumber = !string.IsNullOrEmpty(entry.CustomerId) ? WithMaxLength($"CUST# {entry.CustomerId}", 15) : $"CUST# 0000";
+                        string accountName = !string.IsNullOrEmpty(entry.AccountName) ? WithMaxLength(entry.AccountName, 22) : $"NOT FOUND";
+                        ChoNACHAEntryDetailWriter debitEntry = batchWriter.CreateDebitEntryDetail(27,
+                            entry.RoutingNumber, entry.AccountNumber, entry.Amount, string.Empty,
+                            accountName, string.Empty);
+                        debitEntry.IsDebit = true;
+                        string paymentRelatedInformation = $"CO# 0{iteration+1} CUST #{entry.CustomerId}   CNTRCT# {entry.CustomerId}           TRAN# {GetStringOfLength(9,Convert.ToString(iteration+1), "0")} BATCH# {GetStringOfLength(9, batchNumber, "0")}";
+                        debitEntry.CreateAddendaRecord(paymentRelatedInformation, 05);
+                        debitEntry.Close();
+                        tracingService.Trace($"Entry added & closed");
+                    }
+                    batchWriter.Close();
+                }
+                nachaWriter.Close();
+                bytes = stream.ToArray();
+                tracingService.Trace($"Byte Array length upper {bytes.Length}");
+            }
+
+            var base64OfFile = Convert.ToBase64String(bytes); //converted byte array to base64
+            if (!string.IsNullOrEmpty(base64OfFile))
+            {
+                string entityName = "afg_batch";
+                Entity note = new Entity("annotation");
+                note["objectid"] = new EntityReference(entityName, batchId);
+                note["objecttypecode"] = entityName;
+                note["documentbody"] = base64OfFile;
+                note["mimetype"] = "text/plain";
+                note["filename"] = fileName;
+                note["subject"] = $"NACHA-{fileName}";
+                note["notetext"] = $"NACHA created at {DateTime.Now}";
+                Guid noteId = service.Create(note);
+                tracingService.Trace("Note created succfully!");
+            }
+            else
+            {
+                tracingService.Trace("Unable to create Note in CRM, base64 is null");
             }
         }
 
@@ -109,6 +229,10 @@ namespace System.AFG.Payments.Workflows
                         <attribute name='tf_accountno' />
                         <attribute name='tf_accountname' />
                     </link-entity>
+                    <link-entity name='account' from='accountid' to='afg_account' visible='false' link-type='outer' alias='acc'>
+                        <attribute name='afg_lplus_customerid' />
+                        <attribute name='name' />
+                    </link-entity>
                 </entity>
             </fetch>";
             batchedPaymentsXml = string.Format(batchedPaymentsXml, batchId);
@@ -116,65 +240,16 @@ namespace System.AFG.Payments.Workflows
             return collection;
         }
 
-        public void CreateNACHAFile(IOrganizationService service, ITracingService tracingService, List<NACHAEntry> listOfEntries, Guid batchId)
+        public string GetBatchNumber(ITracingService tracingService, IOrganizationService orgService, Guid batchId)
         {
-            tracingService.Trace($"Trying to create NACHA file with entries : {listOfEntries.Count}");
-            ChoNACHAConfiguration config = new ChoNACHAConfiguration();
-            config.BatchNumber = 2022;
-            config.DestinationBankRoutingNumber = "0071006486";
-            config.OriginatingCompanyId = "1234567892";
-            config.DestinationBankName = "CIBC BANK USA";
-            config.OriginatingCompanyName = "ALLIANCE FUNDING GROUP";
-            config.ReferenceCode = "ALLIANCE FUNDING GROUP LLC.";
-            config.TurnOffDestinationBankRoutingNumber = true;
-            config.TurnOffOriginatingCompanyIdValidation = true;
-
-            string randomString = GenerateRandomAlphanumericString();
-            string fileName = $"ACH_{GenerateRandomAlphanumericString()}.txt";
-            tracingService.Trace($"Filename is generated as {fileName}");
-
-            MemoryStream stream = new MemoryStream();
-            byte[] bytes = null;
-            using (ChoNACHAWriter nachaWriter = new ChoNACHAWriter(stream, config))
+            Entity batch = orgService.Retrieve("afg_batch", batchId, new ColumnSet("afg_batchnumber"));
+            if (batch != null)
             {
-                using (ChoNACHABatchWriter batchWriter = nachaWriter.CreateBatch(200))
-                {
-                    for (int i = 0; i < listOfEntries.Count; i++)
-                    {
-                        NACHAEntry entry = listOfEntries[i];
-                        ChoNACHAEntryDetailWriter creditEntry = batchWriter.CreateDebitEntryDetail(20, 
-                            entry.RoutingNumber, entry.AccountNumber, 22.505M, entry.AccountName,
-                            entry.Bank, "");
-                        creditEntry.CreateAddendaRecord(entry.ReasonOfPayment);
-                        creditEntry.Close();
-                    }
-                    batchWriter.Close();                   
-                }
-                nachaWriter.Close();
-                bytes = stream.ToArray();
-                tracingService.Trace($"Byte Array length upper {bytes.Length}");
+                string batchNumber = (batch.Contains("afg_batchnumber") && batch["afg_batchnumber"] != null) ? batch["afg_batchnumber"].ToString() : "2022";
+                tracingService.Trace($"Retrieved Batch Number {batchNumber}");
+                return batchNumber;
             }
-
-            var base64OfFile = Convert.ToBase64String(bytes); //converted byte array to base64
-            if (!string.IsNullOrEmpty(base64OfFile))
-            {
-                tracingService.Trace($"Trying to create Note in CRM");
-                string entityName = "afg_batch";
-                Entity note = new Entity("annotation");
-                note["objectid"] = new EntityReference(entityName, batchId);
-                note["objecttypecode"] = entityName;
-                note["documentbody"] = base64OfFile;
-                note["mimetype"] = "text/plain";
-                note["filename"] = fileName;
-                note["subject"] = $"NACHA-{fileName}";
-                note["notetext"] = $"NACHA created at {DateTime.Now}";
-                Guid noteId = service.Create(note);
-                tracingService.Trace("Note created succfully!");
-            }
-            else
-            {
-                tracingService.Trace("Unable to create Note in CRM, base64 is null");
-            }
+            return "2022";
         }
 
         public string GenerateRandomAlphanumericString(int length = 10)
@@ -185,6 +260,16 @@ namespace System.AFG.Payments.Workflows
             var randomString = new string(Enumerable.Repeat(chars, length)
                                                     .Select(s => s[random.Next(s.Length)]).ToArray());
             return randomString;
+        }
+
+        public string WithMaxLength(string value, int maxLength)
+        {
+            return value?.Substring(0, Math.Min(value.Length, maxLength));
+        }
+        
+        public string GetStringOfLength(int totalLength, string input, string charcterToAppend)
+        {
+            return input.PadLeft(totalLength, Convert.ToChar(charcterToAppend));
         }
     }
 }
