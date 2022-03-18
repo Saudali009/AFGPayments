@@ -8,7 +8,7 @@ namespace System.AFG.Payments.Workflows
 {
     public class NACHAEntry
     {
-        public NACHAEntry(string paymentName, string accountName,string customerId, int paymentType, decimal amount, string reasonOfPayment, string note, string bank, string routingNumber, string accountNumber, string bankBranch)
+        public NACHAEntry(string paymentName, string accountName,string customerId, int paymentType, decimal amount, string reasonOfPayment, string note, string bank, string routingNumber, string accountNumber, string bankBranch, string contractNumber)
         {
             PaymentName = paymentName;
             AccountName = accountName;
@@ -21,6 +21,7 @@ namespace System.AFG.Payments.Workflows
             AccountNumber = accountNumber;
             BankBranch = bankBranch;
             CustomerId = customerId;
+            ContractNumber = contractNumber;
         }
         public string PaymentName { get; set; }
         public string AccountName { get; set; }
@@ -33,5 +34,6 @@ namespace System.AFG.Payments.Workflows
         public string RoutingNumber { get; set; }
         public string AccountNumber { get; set; }
         public string BankBranch { get; set; }        
+        public string ContractNumber { get; set; }        
     }
 }

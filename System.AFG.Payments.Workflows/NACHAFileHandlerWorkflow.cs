@@ -64,8 +64,9 @@ namespace System.AFG.Payments.Workflows
                     string accountNumber = payment.Contains("br.tf_accountno") ? Convert.ToString(((AliasedValue)payment["br.tf_accountno"]).Value) : string.Empty;
                     string branch = payment.Contains("br.tf_branchname") ? Convert.ToString(((AliasedValue)payment["br.tf_branchname"]).Value) : string.Empty;
                     string customerId = payment.Contains("acc.afg_lplus_customerid") ? Convert.ToString(((AliasedValue)payment["acc.afg_lplus_customerid"]).Value) : string.Empty;
+                    string contractNumber = payment.Contains("opp.afg_lplusid") ? Convert.ToString(((AliasedValue)payment["acc.afg_lplusid"]).Value) : string.Empty;
 
-                    NACHAEntry entry = new NACHAEntry(paymentName, accountName, customerId, paymentType, amount, reasonOfPayment, notes, bankName, routingNumber, accountNumber, branch);
+                    NACHAEntry entry = new NACHAEntry(paymentName, accountName, customerId, paymentType, amount, reasonOfPayment, notes, bankName, routingNumber, accountNumber, branch, contractNumber);
                     if (entry != null)
                     {
                         listOfEntries.Add(entry);
@@ -91,6 +92,7 @@ namespace System.AFG.Payments.Workflows
             config.OriginatingCompanyId = "2330805823";
             config.DestinationBankName = "CIBC BANK USA";
             config.OriginatingCompanyName = $"ALLIANCE FUNDING GROUP";
+            config.ReferenceCode = batchNumberFormatted;
             config.BlockingFactor = 10;
             config.TurnOffDestinationBankRoutingNumber = true;
             config.TurnOffOriginatingCompanyIdValidation = true;
@@ -163,8 +165,6 @@ namespace System.AFG.Payments.Workflows
                     companyEntryDescription: "CNTRCT PMT",
                     companyDescriptiveDate: DateTime.Today, effectiveEntryDate: DateTime.Now.AddDays(1)))
                 {
-                    tracingService.Trace($"Batch start writing");
-
                     for (int iteration = 0; iteration < listOfEntries.Count; iteration++)
                     {
                         NACHAEntry entry = listOfEntries[iteration];
@@ -173,16 +173,15 @@ namespace System.AFG.Payments.Workflows
                             entry.RoutingNumber, entry.AccountNumber, entry.Amount, string.Empty,
                             accountName, string.Empty);
                         debitEntry.IsDebit = true;
-                        string paymentRelatedInformation = $"CO# 0{iteration+1} CUST #{entry.CustomerId}   CNTRCT# {entry.CustomerId}           TRAN# {GetStringOfLength(9,Convert.ToString(iteration+1), "0")} BATCH# {GetStringOfLength(9, batchNumber, "0")}";
+                        string contractId = string.IsNullOrEmpty(entry.ContractNumber) ? entry.CustomerId : entry.ContractNumber; 
+                        string paymentRelatedInformation = $"CO# 0{iteration + 1} CUST #{entry.CustomerId}  CNTRCT# {contractId} TRAN# {GetStringOfLength(9, Convert.ToString(iteration + 1), "0")} BATCH# {GetStringOfLength(9, batchNumber, "0")}";
                         debitEntry.CreateAddendaRecord(paymentRelatedInformation, 05);
                         debitEntry.Close();
-                        tracingService.Trace($"Entry added & closed");
                     }
                     batchWriter.Close();
                 }
                 nachaWriter.Close();
                 bytes = stream.ToArray();
-                tracingService.Trace($"Byte Array length upper {bytes.Length}");
             }
 
             var base64OfFile = Convert.ToBase64String(bytes); //converted byte array to base64
@@ -232,6 +231,9 @@ namespace System.AFG.Payments.Workflows
                         <attribute name='afg_lplus_customerid' />
                         <attribute name='name' />
                     </link-entity>
+                   <link-entity name='opportunity' from='opportunityid' to='afg_opportunity' visible='false' link-type='outer' alias='opp'>
+                      <attribute name='afg_lplusid' />
+                    </link-entity>
                 </entity>
             </fetch>";
             batchedPaymentsXml = string.Format(batchedPaymentsXml, batchId);
@@ -265,7 +267,7 @@ namespace System.AFG.Payments.Workflows
         {
             return value?.Substring(0, Math.Min(value.Length, maxLength));
         }
-        
+
         public string GetStringOfLength(int totalLength, string input, string charcterToAppend)
         {
             return input.PadLeft(totalLength, Convert.ToChar(charcterToAppend));
