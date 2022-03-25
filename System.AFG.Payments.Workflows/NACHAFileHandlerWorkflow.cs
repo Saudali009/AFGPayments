@@ -27,13 +27,33 @@ namespace System.AFG.Payments.Workflows
             {
                 Guid batchId = workflowContext.PrimaryEntityId;
                 string entityName = workflowContext.PrimaryEntityName;
-                string batchNumber = GetBatchNumber(tracingService, orgService, batchId);
+                Entity batchDetails = GetBatchDetails(tracingService, orgService, batchId);
+                string batchNumber = string.Empty;
+                int bankCode = (int)Bank.CIBC;
+
+                if (batchDetails != null)
+                {
+                    batchNumber = batchDetails.Contains("afg_batchnumber") && batchDetails["afg_batchnumber"] != null ? batchDetails["afg_batchnumber"].ToString() : "2022";
+                    bankCode = batchDetails.Contains("afg_bank") && batchDetails["afg_bank"] != null ? ((OptionSetValue)batchDetails["afg_bank"]).Value : (int)Bank.CIBC;
+                    tracingService.Trace($"Retrieved Batch Number {batchNumber}");
+                }
                 EntityCollection paymentCollection = GetBatchedPayments(tracingService, orgService, batchId);
                 List<NACHAEntry> listOfEntries = GetListOfNachaEntries(paymentCollection);
                 if (listOfEntries != null && listOfEntries.Count > 0)
                 {
-                    tracingService.Trace($"Entries are ready for creation with total: {listOfEntries.Count}");
-                    CreateNACHAFile(orgService, tracingService, listOfEntries, batchId, batchNumber);
+                    tracingService.Trace($"Entries : {listOfEntries.Count} & Bank : {bankCode}");
+                    if (bankCode == (int)Bank.CIBC)
+                    {
+                        CreateNACHAFile(orgService, tracingService, listOfEntries, batchId, batchNumber);
+                    }
+                    else if (bankCode == (int)Bank.FithThird)
+                    {
+                        CreateNACHAFileFithThird(orgService, tracingService, listOfEntries, batchId, batchNumber);
+                    }
+                    else
+                    {
+                        tracingService.Trace($"Bank not identified.");
+                    }
                 }
                 else
                 {
@@ -173,8 +193,137 @@ namespace System.AFG.Payments.Workflows
                             entry.RoutingNumber, entry.AccountNumber, entry.Amount, string.Empty,
                             accountName, string.Empty);
                         debitEntry.IsDebit = true;
-                        string contractId = string.IsNullOrEmpty(entry.ContractNumber) ? entry.CustomerId : entry.ContractNumber; 
+                        string contractId = string.IsNullOrEmpty(entry.ContractNumber) ? entry.CustomerId : entry.ContractNumber;
                         string paymentRelatedInformation = $"CO# 0{iteration + 1} CUST #{entry.CustomerId}  CNTRCT# {contractId} TRAN# {GetStringOfLength(9, Convert.ToString(iteration + 1), "0")} BATCH# {GetStringOfLength(9, batchNumber, "0")}";
+                        debitEntry.CreateAddendaRecord(paymentRelatedInformation, 05);
+                        debitEntry.Close();
+                    }
+                    batchWriter.Close();
+                }
+                nachaWriter.Close();
+                bytes = stream.ToArray();
+            }
+
+            var base64OfFile = Convert.ToBase64String(bytes); //converted byte array to base64
+            if (!string.IsNullOrEmpty(base64OfFile))
+            {
+                string entityName = "afg_batch";
+                Entity note = new Entity("annotation");
+                note["objectid"] = new EntityReference(entityName, batchId);
+                note["objecttypecode"] = entityName;
+                note["documentbody"] = base64OfFile;
+                note["mimetype"] = "text/plain";
+                note["filename"] = fileName;
+                note["subject"] = $"NACHA-{fileName}";
+                note["notetext"] = $"NACHA created at {DateTime.Now}";
+                Guid noteId = service.Create(note);
+                tracingService.Trace("Note created succfully!");
+            }
+            else
+            {
+                tracingService.Trace("Unable to create Note in CRM, base64 is null");
+            }
+        }
+
+        public void CreateNACHAFileFithThird(IOrganizationService service, ITracingService tracingService, List<NACHAEntry> listOfEntries, Guid batchId, string batchNumber)
+        {
+            string batchNumberFormatted = GetStringOfLength(8, batchNumber, "0");
+            string fileName = $"ACH_{GenerateRandomAlphanumericString()}.ACH";
+            MemoryStream stream = new MemoryStream();
+            byte[] bytes = null;
+
+            #region Batch File Header Configuration       
+            ChoNACHAConfiguration config = new ChoNACHAConfiguration();
+            config.EntryDetailTraceSource = ChoEntryDetailTraceSource.OriginatingDFI;
+            config.ErrorMode = ChoErrorMode.IgnoreAndContinue;
+            config.BatchNumber = 0000001;
+            config.DestinationBankRoutingNumber = " 242071758";
+            config.OriginatingCompanyId = "1330805823";
+            config.DestinationBankName = "FIFTH THIRD BANK";
+            config.OriginatingCompanyName = $"ALLIANCE FUNDING GROUP";
+            config.ReferenceCode = batchNumberFormatted;
+            config.BlockingFactor = 10;
+            config.TurnOffDestinationBankRoutingNumber = true;
+            config.TurnOffOriginatingCompanyIdValidation = true;
+
+            ChoActivator.Factory = (t, args) =>
+            {
+                if (t == typeof(ChoNACHAFileHeaderRecord))
+                {
+                    tracingService.Trace($"Processing File Header");
+                    var header = new ChoNACHAFileHeaderRecord();
+                    header.Initialize();
+                    header.RecordTypeCode = ChoRecordTypeCode.FileHeader;
+                    header.PriorityCode = "01";
+                    header.ImmediateDestination = "242071758";
+                    header.ImmediateOrigin = "1330805823";
+                    header.FileCreationDate = DateTime.Today;
+                    header.FileCreationTime = DateTime.Now.ToLocalTime();
+                    header.FileIDModifier = Convert.ToChar("A");
+                    header.RecordSize = Convert.ToUInt16(094);
+                    header.FormatCode = Convert.ToUInt16(1);
+                    header.ImmediateDestinationName = "FIFTH THIRD BANK";
+                    header.ImmediateOriginName = "ALLIANCE FUNDING GROUP";
+                    header.ReferenceCode = batchNumberFormatted;
+                    tracingService.Trace($"File Header Completed");
+                    return header;
+                }
+
+                if (t == typeof(ChoNACHABatchHeaderRecord))
+                {
+                    tracingService.Trace($"Processing Batch Header");
+                    var header = new ChoNACHABatchHeaderRecord();
+                    header.Initialize();
+                    header.RecordTypeCode = ChoRecordTypeCode.BatchHeader;
+                    header.ServiceClassCode = 200;
+                    header.CompanyName = "ALLIANCE FUNDING GROUP";
+                    header.CompanyDiscretionaryData = string.Empty;
+                    header.CompanyID = "1330805823";
+                    header.StandardEntryClassCode = "CCD";
+                    header.CompanyEntryDescription = "CNTRCT PMT";
+                    header.CompanyDescriptiveDate = $"PMT{DateTime.Today.ToString("yyMMdd")}";
+                    header.EffectiveEntryDate = DateTime.Now.AddDays(1);
+                    header.OriginatorStatusCode = Convert.ToChar("1");
+                    header.JulianSettlementDate = "000";
+                    header.OriginatingDFIID = "24207175";
+                    header.BatchNumber = 0000001;
+                    tracingService.Trace($"Batch Header Completed");
+                    return header;
+                }
+                if (t == typeof(ChoNACHAAddendaRecord))
+                {
+                    tracingService.Trace($"Processing Entry Detail Record");
+                    var header = new ChoNACHAAddendaRecord();
+                    header.Initialize();
+                    header.AddendaTypeCode = 05;
+                    header.RecordTypeCode = ChoRecordTypeCode.Addenda;
+                    tracingService.Trace($"Entry Detail Completed");
+                    return header;
+                }
+                return null;
+            };
+
+            #endregion
+
+            using (ChoNACHAWriter nachaWriter = new ChoNACHAWriter(stream, config))
+            {
+                tracingService.Trace($"Processing file starting..");
+                int batchServiceClassCode = 200;
+                nachaWriter.Configuration.ErrorMode = ChoErrorMode.IgnoreAndContinue;
+                using (ChoNACHABatchWriter batchWriter = nachaWriter.CreateBatch(batchServiceClassCode, standardEntryClassCode: "CCD",
+                    companyEntryDescription: "CNTRCT PMT",
+                    companyDescriptiveDate: DateTime.Today, effectiveEntryDate: DateTime.Now.AddDays(1)))
+                {
+                    for (int iteration = 0; iteration < listOfEntries.Count; iteration++)
+                    {
+                        NACHAEntry entry = listOfEntries[iteration];
+                        string accountName = !string.IsNullOrEmpty(entry.AccountName) ? WithMaxLength(entry.AccountName, 22) : $"NOT FOUND";
+                        string contractId = string.IsNullOrEmpty(entry.ContractNumber) ? entry.CustomerId : entry.ContractNumber;
+                        string paymentRelatedInformation = $"CO# 0{iteration + 1} CUST# {entry.CustomerId}  CNTRCT# {contractId} TRAN# {GetStringOfLength(9, Convert.ToString(iteration + 1), "0")} BATCH# {GetStringOfLength(9, batchNumber, "0")}";
+                        ChoNACHAEntryDetailWriter debitEntry = batchWriter.CreateDebitEntryDetail(27,
+                            entry.RoutingNumber, entry.AccountNumber, entry.Amount, $"-{ contractId}",
+                            accountName, string.Empty);
+                        debitEntry.IsDebit = true;
                         debitEntry.CreateAddendaRecord(paymentRelatedInformation, 05);
                         debitEntry.Close();
                     }
@@ -241,16 +390,10 @@ namespace System.AFG.Payments.Workflows
             return collection;
         }
 
-        public string GetBatchNumber(ITracingService tracingService, IOrganizationService orgService, Guid batchId)
+        public Entity GetBatchDetails(ITracingService tracingService, IOrganizationService orgService, Guid batchId)
         {
-            Entity batch = orgService.Retrieve("afg_batch", batchId, new ColumnSet("afg_batchnumber"));
-            if (batch != null)
-            {
-                string batchNumber = (batch.Contains("afg_batchnumber") && batch["afg_batchnumber"] != null) ? batch["afg_batchnumber"].ToString() : "2022";
-                tracingService.Trace($"Retrieved Batch Number {batchNumber}");
-                return batchNumber;
-            }
-            return "2022";
+            Entity batch = orgService.Retrieve("afg_batch", batchId, new ColumnSet(new string[] { "afg_batchnumber", "afg_bank" }));
+            return batch;
         }
 
         public string GenerateRandomAlphanumericString(int length = 10)
@@ -273,4 +416,9 @@ namespace System.AFG.Payments.Workflows
             return input.PadLeft(totalLength, Convert.ToChar(charcterToAppend));
         }
     }
+    public enum Bank
+    {
+        FithThird = 346380000,
+        CIBC = 346380001
+    };
 }

@@ -1,8 +1,16 @@
-﻿function validatePaymentTransactions(listOfSelectedPayments) {
+﻿function validatePaymentTransactions(listOfSelectedPayments, commandProperties) {
     try {
         var totalPaymentCount = 0;
+        var bankCode = 346380001;
         if (listOfSelectedPayments.length > 0) {
-
+            if (commandProperties.SourceControlId.includes("CIBCBANK.Button")) {
+                console.log("CIBC Clicked");
+                bankCode = 346380001;
+            }
+            else if (commandProperties.SourceControlId.includes("FIFTHTHIRDBANK.Button")) {
+                console.log("Fifth Third Clicked");
+                bankCode = 346380000;
+            }
             Xrm.Utility.showProgressIndicator("Creating Batch Please Wait..");
             for (let i = 0; i < listOfSelectedPayments.length; i++) {
                 var payment = listOfSelectedPayments[i];
@@ -26,7 +34,7 @@
             }
 
             //Create Batch for selected Payments
-            createBatch(listOfSelectedPayments, totalPaymentCount);
+            createBatch(listOfSelectedPayments, totalPaymentCount, bankCode);
         } else {
             Xrm.Utility.alertDialog("Please select payment transactions before proceeding for batch creation");
         }
@@ -54,11 +62,12 @@ function getPaymentDetails(payment) {
     }
 }
 
-function createBatch(listOfSelectedPayments, totalPaymentCount) {
+function createBatch(listOfSelectedPayments, totalPaymentCount, bankCode) {
     console.log("Trying to create Batch for payments.");
     var entity = {};
     entity.afg_name = "BATCH-" + (new Date().getTime()).toString(36).toUpperCase();
     entity.afg_batchdate = new Date();
+    entity.afg_bank = bankCode;
     entity.afg_totalamount = Number(parseFloat(totalPaymentCount));
     Xrm.WebApi.online.createRecord("afg_batch", entity).then(
         function success(result) {
@@ -76,7 +85,7 @@ function associatePaymentsWithBatch(batchId, listOfSelectedPayment) {
     for (let counter = 0; counter < listOfSelectedPayment.length; counter++) {
         var payment = listOfSelectedPayment[counter];
         var entity = {};
-        entity.statuscode = 346380002;
+        entity.afg_paymentstatus = 346380003;
         entity["afg_batch@odata.bind"] = "/afg_batchs(" + batchId + ")";
         Xrm.WebApi.online.updateRecord("afg_payment", payment.Id, entity).then(
             function success(result) {
