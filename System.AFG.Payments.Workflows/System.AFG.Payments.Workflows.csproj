@@ -88,6 +88,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BanksEnum.cs" />
+    <Compile Include="CRMDataRetrievalHandler.cs" />
+    <Compile Include="GeneralUtilities.cs" />
     <Compile Include="NACHAEntry.cs" />
     <Compile Include="NACHAFileHandlerWorkflow.cs" />
     <Compile Include="PaymentAttributes.cs" />
