@@ -60,7 +60,7 @@ namespace ACH_Console_App
 
                 var base64OfFile = Convert.ToBase64String(fileByteArray); //converted byte array to base64
                 **/
-                string ss = DateTime.Today.ToString("yyMMdd");
+                DateTime ss = DateTime.Today.Date;
                 string test = GetStringOfLength(8, "0012", "0");
                 ulong sss = Convert.ToUInt64("0000001");
                 Console.ReadKey();

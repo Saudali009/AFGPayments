@@ -80,6 +80,9 @@ namespace System.AFG.Payments.Workflows
         {
             string batchNumberFormatted = GeneralUtilities.GetStringOfLength(8, batchNumber, "0");
             string fileName = $"ACH_{ GeneralUtilities.GenerateRandomAlphanumericString()}.ACH";
+            DateTime calculatedEffectiveDate = GeneralUtilities.GetNextWorkingDay(tracingService, service);
+            tracingService.Trace($"Effective Date is calculated as: {calculatedEffectiveDate}");
+
             MemoryStream stream = new MemoryStream();
             byte[] bytes = null;
 
@@ -134,7 +137,7 @@ namespace System.AFG.Payments.Workflows
                     header.StandardEntryClassCode = "CCD";
                     header.CompanyEntryDescription = "CNTRCT PMT";
                     header.CompanyDescriptiveDate = $"PMT{DateTime.Today.ToString("yyMMdd")}";
-                    header.EffectiveEntryDate = DateTime.Now.AddDays(1);
+                    header.EffectiveEntryDate = calculatedEffectiveDate; // DateTime.Now.AddDays(1);
                     header.OriginatorStatusCode = Convert.ToChar("1");
                     header.OriginatingDFIID = NACHAConfig.Contains("afg_destinationbankroutingnumber") && NACHAConfig["afg_destinationbankroutingnumber"] != null ? Convert.ToString(NACHAConfig["afg_destinationbankroutingnumber"]) : string.Empty;
                     header.BatchNumber = 0000001;
@@ -164,7 +167,7 @@ namespace System.AFG.Payments.Workflows
                 nachaWriter.Configuration.ErrorMode = ChoErrorMode.IgnoreAndContinue;
                 using (ChoNACHABatchWriter batchWriter = nachaWriter.CreateBatch(batchServiceClassCode, standardEntryClassCode: "CCD",
                     companyEntryDescription: "CNTRCT PMT",
-                    companyDescriptiveDate: DateTime.Today, effectiveEntryDate: DateTime.Now.AddDays(1)))
+                    companyDescriptiveDate: DateTime.Today, effectiveEntryDate: calculatedEffectiveDate))
                 {
                     for (int iteration = 0; iteration < listOfEntries.Count; iteration++)
                     {

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Query;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -28,10 +30,9 @@ namespace System.AFG.Payments.Workflows
             return input.PadLeft(totalLength, Convert.ToChar(charcterToAppend));
         }
 
-        private static bool IsHoliday(DateTime date)
+        private static bool IsHoliday(DateTime date, List<DateTime> Holidays)
         {
-            return false;
-            //return Holidays.Contains(date);
+            return Holidays.Any(day => day.Day == date.Day && day.Month == date.Month && day.Year == date.Year);
         }
 
         public static bool IsWeekend(DateTime date)
@@ -40,12 +41,27 @@ namespace System.AFG.Payments.Workflows
                 || date.DayOfWeek == DayOfWeek.Sunday;
         }
 
-        public static DateTime GetNextWorkingDay(DateTime date)
+        public static DateTime GetNextWorkingDay(ITracingService tracingService, IOrganizationService service)
         {
-            do
+            List<DateTime> holidays = new List<DateTime>();
+            EntityCollection listOfHolidays = CRMDataRetrievalHandler.GetEffectiveHolidays(tracingService, service);
+            foreach (Entity holiday in listOfHolidays.Entities)
+            {
+                if (holiday.Contains("afg_date") && holiday["afg_date"] != null)
+                {
+                    DateTime holidayDate = Convert.ToDateTime(holiday["afg_date"]);
+                    holidays.Add(holidayDate);
+                }
+            }
+            DateTime date = DateTime.Today;
+            tracingService.Trace($"List of Holidays : {holidays}");
+            tracingService.Trace($"Is Holiday? : {IsHoliday(date, holidays)}");
+            tracingService.Trace($"Is Weekend? : {IsWeekend(date)}");
+
+            while (IsHoliday(date, holidays) || IsWeekend(date))
             {
                 date = date.AddDays(1);
-            } while (IsHoliday(date) || IsWeekend(date));
+            }
             return date;
         }
     }
