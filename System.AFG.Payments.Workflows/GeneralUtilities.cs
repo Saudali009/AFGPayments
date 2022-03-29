@@ -30,9 +30,10 @@ namespace System.AFG.Payments.Workflows
             return input.PadLeft(totalLength, Convert.ToChar(charcterToAppend));
         }
 
-        private static bool IsHoliday(DateTime date, List<DateTime> Holidays)
+        private static bool IsHoliday(DateTime effectiveDate, List<DateTime> Holidays)
         {
-            return Holidays.Any(day => day.Day == date.Day && day.Month == date.Month && day.Year == date.Year);
+            return Holidays.Any(holiday => holiday.Day == effectiveDate.Day &&
+            holiday.Month == effectiveDate.Month && holiday.Year == effectiveDate.Year);
         }
 
         public static bool IsWeekend(DateTime date)
@@ -50,19 +51,28 @@ namespace System.AFG.Payments.Workflows
                 if (holiday.Contains("afg_date") && holiday["afg_date"] != null)
                 {
                     DateTime holidayDate = Convert.ToDateTime(holiday["afg_date"]);
-                    holidays.Add(holidayDate);
+                    holidays.Add(holidayDate.Date);
                 }
             }
-            DateTime date = DateTime.Today;
-            tracingService.Trace($"List of Holidays : {holidays}");
-            tracingService.Trace($"Is Holiday? : {IsHoliday(date, holidays)}");
-            tracingService.Trace($"Is Weekend? : {IsWeekend(date)}");
 
-            while (IsHoliday(date, holidays) || IsWeekend(date))
+            DateTime today = DateTime.Now;
+            bool dateFound = false;
+            int counter = 1;
+
+            while (dateFound == false)
             {
-                date = date.AddDays(1);
+                today = today.AddDays(counter);
+                if (IsHoliday(today, holidays) || IsWeekend(today))
+                {
+                    counter++;
+                    dateFound = false;
+                }
+                else
+                {
+                    dateFound = true;
+                }
             }
-            return date;
+            return today;
         }
     }
 }

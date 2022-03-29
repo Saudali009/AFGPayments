@@ -14,10 +14,15 @@
             Xrm.Utility.showProgressIndicator("Creating Batch Please Wait..");
             for (let i = 0; i < listOfSelectedPayments.length; i++) {
                 var payment = listOfSelectedPayments[i];
-                var amount = getPaymentDetails(payment);
-                if (amount != null) {
-                    totalPaymentCount += amount;
-                }
+                var details = getPaymentDetails(payment);
+                if (details != null) {
+                    var amount = details[0];
+                    if (amount != null) {
+                        totalPaymentCount += amount;
+                    }
+                } else {
+                    console.log("Unable to found payment details.");
+                }                
             }
             if (totalPaymentCount < 1) {
                 Xrm.Utility.closeProgressIndicator();
@@ -47,7 +52,7 @@
 
 function getPaymentDetails(payment) {
     var req = new XMLHttpRequest();
-    req.open("GET", Xrm.Page.context.getClientUrl() + "/api/data/v9.1/afg_payments(" + payment.Id + ")?$select=afg_amount", false);
+    req.open("GET", Xrm.Page.context.getClientUrl() + "/api/data/v9.1/afg_payments(" + payment.Id + ")?$select=afg_amount,afg_paymentdistcode", false);
     req.setRequestHeader("OData-MaxVersion", "4.0");
     req.setRequestHeader("OData-Version", "4.0");
     req.setRequestHeader("Accept", "application/json");
@@ -57,7 +62,9 @@ function getPaymentDetails(payment) {
     if (req.readyState === 4) {
         if (req.status === 200) {
             var result = JSON.parse(req.response);
-            return result["afg_amount"];
+            var paymentDistCode = result["afg_paymentdistcode"];
+            var amount = result["afg_amount"];
+            return [amount, paymentDistCode];
         }
     }
 }

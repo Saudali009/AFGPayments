@@ -35,8 +35,7 @@ namespace System.AFG.Payments.Workflows
                 {
                     batchNumber = batchDetails.Contains("afg_batchnumber") && batchDetails["afg_batchnumber"] != null ? batchDetails["afg_batchnumber"].ToString() : "2022";
                     bankCode = batchDetails.Contains("afg_bank") && batchDetails["afg_bank"] != null ? ((OptionSetValue)batchDetails["afg_bank"]).Value : (int)BanksEnum.CIBC;
-                    tracingService.Trace($"Retrieved Batch Number {batchNumber} for bank {bankCode}");
-
+                 
                     if (!bankCode.IsNull())
                     {
                         EntityCollection configuration = CRMDataRetrievalHandler.GetNACHAConfiguration(tracingService, orgService, bankCode);
@@ -81,7 +80,6 @@ namespace System.AFG.Payments.Workflows
             string batchNumberFormatted = GeneralUtilities.GetStringOfLength(8, batchNumber, "0");
             string fileName = $"ACH_{ GeneralUtilities.GenerateRandomAlphanumericString()}.ACH";
             DateTime calculatedEffectiveDate = GeneralUtilities.GetNextWorkingDay(tracingService, service);
-            tracingService.Trace($"Effective Date is calculated as: {calculatedEffectiveDate}");
 
             MemoryStream stream = new MemoryStream();
             byte[] bytes = null;
@@ -105,7 +103,6 @@ namespace System.AFG.Payments.Workflows
             {
                 if (t == typeof(ChoNACHAFileHeaderRecord))
                 {
-                    tracingService.Trace($"Processing File Header");
                     var header = new ChoNACHAFileHeaderRecord();
                     header.Initialize();
                     header.PriorityCode = "01";
@@ -120,13 +117,11 @@ namespace System.AFG.Payments.Workflows
                     header.ImmediateDestinationName = NACHAConfig.Contains("afg_destinationbankname") && NACHAConfig["afg_destinationbankname"] != null ? Convert.ToString(NACHAConfig["afg_destinationbankname"]) : string.Empty;
                     header.ImmediateOriginName = NACHAConfig.Contains("afg_companyname") && NACHAConfig["afg_companyname"] != null ? Convert.ToString(NACHAConfig["afg_companyname"]) : string.Empty;
                     header.ReferenceCode = batchNumberFormatted;
-                    tracingService.Trace($"File Header Completed");
                     return header;
                 }
 
                 if (t == typeof(ChoNACHABatchHeaderRecord))
                 {
-                    tracingService.Trace($"Processing Batch Header");
                     var header = new ChoNACHABatchHeaderRecord();
                     header.Initialize();
                     header.RecordTypeCode = ChoRecordTypeCode.BatchHeader;
@@ -141,17 +136,14 @@ namespace System.AFG.Payments.Workflows
                     header.OriginatorStatusCode = Convert.ToChar("1");
                     header.OriginatingDFIID = NACHAConfig.Contains("afg_destinationbankroutingnumber") && NACHAConfig["afg_destinationbankroutingnumber"] != null ? Convert.ToString(NACHAConfig["afg_destinationbankroutingnumber"]) : string.Empty;
                     header.BatchNumber = 0000001;
-                    tracingService.Trace($"Batch Header Completed");
                     return header;
                 }
                 if (t == typeof(ChoNACHAAddendaRecord))
                 {
-                    tracingService.Trace($"Processing Entry Detail Record");
                     var header = new ChoNACHAAddendaRecord();
                     header.Initialize();
                     header.AddendaTypeCode = 05;
                     header.RecordTypeCode = ChoRecordTypeCode.Addenda;
-                    tracingService.Trace($"Entry Detail Completed");
                     return header;
                 }
                 return null;
@@ -161,7 +153,6 @@ namespace System.AFG.Payments.Workflows
 
             using (ChoNACHAWriter nachaWriter = new ChoNACHAWriter(stream, config))
             {
-                tracingService.Trace($"Processing file starting..");
                 int batchServiceClassCode = 200;
                 nachaWriter.Configuration.BatchNumber = Convert.ToUInt32(batchNumberFormatted);
                 nachaWriter.Configuration.ErrorMode = ChoErrorMode.IgnoreAndContinue;
