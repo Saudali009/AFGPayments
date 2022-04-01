@@ -1,24 +1,33 @@
-﻿function validatePaymentTransactions(listOfSelectedPayments, commandProperties) {
+﻿function validatePaymentTransactions(listOfSelectedPayments) {
     try {
+        console.log("Button clicked for batch creation.");
+
+        const CIBC_BANK = 346380001;
+        const FIFTHTHIRD_BANK = 346380000;
         var totalPaymentCount = 0;
-        var bankCode = 346380001;
+        var cibcPayments = new Array();
+        var fifthThirdPayments = new Array();
+        var fithThirdbatchIdentifier = "AFG-53";
+
         if (listOfSelectedPayments.length > 0) {
-            if (commandProperties.SourceControlId.includes("CIBCBANK.Button")) {
-                console.log("CIBC Clicked");
-                bankCode = 346380001;
-            }
-            else if (commandProperties.SourceControlId.includes("FIFTHTHIRDBANK.Button")) {
-                console.log("Fifth Third Clicked");
-                bankCode = 346380000;
-            }
             Xrm.Utility.showProgressIndicator("Creating Batch Please Wait..");
             for (let i = 0; i < listOfSelectedPayments.length; i++) {
                 var payment = listOfSelectedPayments[i];
+
+                //Get Pament Details
                 var details = getPaymentDetails(payment);
                 if (details != null) {
                     var amount = details[0];
-                    if (amount != null) {
+                    var paymentDistCode = details[1];
+                    if (amount != null && amount != undefined) {
                         totalPaymentCount += amount;
+                    }
+
+                    //Identify batch based on dist code
+                    if (paymentDistCode != null && paymentDistCode != undefined && paymentDistCode.toLowerCase() == fithThirdbatchIdentifier.toLowerCase()) {
+                        fifthThirdPayments.push(payment);
+                    } else {
+                        cibcPayments.push(payment);
                     }
                 } else {
                     console.log("Unable to found payment details.");
@@ -38,8 +47,16 @@
                 return;
             }
 
-            //Create Batch for selected Payments
-            createBatch(listOfSelectedPayments, totalPaymentCount, bankCode);
+            //Create Batch for selected Payments (CIBC & Fifth Third)
+            if (cibcPayments.length > 0) {
+                createBatch(cibcPayments, totalPaymentCount, CIBC_BANK);
+            }
+            if (fifthThirdPayments.length > 0) {
+                createBatch(fifthThirdPayments, totalPaymentCount, FIFTHTHIRD_BANK);
+            }
+
+            //Open last created batch 
+
         } else {
             Xrm.Utility.alertDialog("Please select payment transactions before proceeding for batch creation");
         }
@@ -102,8 +119,7 @@ function associatePaymentsWithBatch(batchId, listOfSelectedPayment) {
                 Xrm.Utility.alertDialog(error.message);
             });
     }
-    Xrm.Utility.closeProgressIndicator();
-    Xrm.Utility.openEntityForm("afg_batch", batchId);
+    Xrm.Utility.closeProgressIndicator();    
 }
 
 function getBatchLimitAmount() {

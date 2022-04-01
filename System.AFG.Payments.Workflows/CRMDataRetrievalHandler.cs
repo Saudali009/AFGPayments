@@ -69,6 +69,7 @@ namespace System.AFG.Payments.Workflows
                 </entity>
             </fetch>";
             batchedPaymentsXml = string.Format(batchedPaymentsXml, batchId);
+            tracingService.Trace($"XML is {batchedPaymentsXml}");
             EntityCollection collection = orgService.RetrieveMultiple(new FetchExpression(batchedPaymentsXml));
             return collection;
         }
@@ -87,25 +88,25 @@ namespace System.AFG.Payments.Workflows
             EntityCollection collection = orgService.RetrieveMultiple(new FetchExpression(getEffectiveHolidaysXml));
             return collection;
         }
-        public static List<NACHAEntry> GetListOfNachaEntries(EntityCollection batchePayments)
+        public static List<NACHAEntry> GetListOfNachaEntries(ITracingService tracingService, EntityCollection batchePayments)
         {
             List<NACHAEntry> listOfEntries = new List<NACHAEntry>();
             if (batchePayments != null && batchePayments.Entities.Count > 0)
             {
                 foreach (Entity payment in batchePayments.Entities)
                 {
-                    string paymentName = payment.Contains("afg_reasonofpayment") ? Convert.ToString(payment["afg_reasonofpayment"]) : string.Empty;
-                    string accountName = payment.Contains("afg_account") ? ((EntityReference)payment["afg_account"]).Name : string.Empty;
-                    int paymentType = payment.Contains("afg_paymenttype") ? ((OptionSetValue)payment["afg_paymenttype"]).Value : 346380000;
-                    decimal amount = payment.Contains("afg_amount") ? Convert.ToDecimal(((Money)payment["afg_amount"]).Value) : Convert.ToDecimal(0);
-                    string reasonOfPayment = payment.Contains("afg_reasonofpayment") ? Convert.ToString(payment["afg_reasonofpayment"]) : string.Empty;
-                    string notes = payment.Contains("afg_note") ? Convert.ToString(payment["afg_note"]) : string.Empty;
-                    string bankName = payment.Contains("afg_bankrelation") ? ((EntityReference)payment["afg_bankrelation"]).Name : string.Empty;
-                    string routingNumber = payment.Contains("br.afg_routingnumber") ? Convert.ToString(((AliasedValue)payment["br.afg_routingnumber"]).Value) : string.Empty;
-                    string accountNumber = payment.Contains("br.tf_accountno") ? Convert.ToString(((AliasedValue)payment["br.tf_accountno"]).Value) : string.Empty;
-                    string branch = payment.Contains("br.tf_branchname") ? Convert.ToString(((AliasedValue)payment["br.tf_branchname"]).Value) : string.Empty;
-                    string customerId = payment.Contains("acc.afg_lplus_customerid") ? Convert.ToString(((AliasedValue)payment["acc.afg_lplus_customerid"]).Value) : string.Empty;
-                    string contractNumber = payment.Contains("opp.afg_lplusid") ? Convert.ToString(((AliasedValue)payment["acc.afg_lplusid"]).Value) : string.Empty;
+                    string paymentName = payment.Contains("afg_reasonofpayment") && payment["afg_reasonofpayment"] != null ? Convert.ToString(payment["afg_reasonofpayment"]) : string.Empty;
+                    string accountName = payment.Contains("afg_account") && payment["afg_account"] != null ? ((EntityReference)payment["afg_account"]).Name : string.Empty;
+                    int paymentType = payment.Contains("afg_paymenttype") && payment["afg_paymenttype"] != null ? ((OptionSetValue)payment["afg_paymenttype"]).Value : 346380000;
+                    decimal amount = payment.Contains("afg_amount") && payment["afg_amount"] != null ? Convert.ToDecimal(((Money)payment["afg_amount"]).Value) : Convert.ToDecimal(0);
+                    string reasonOfPayment = payment.Contains("afg_reasonofpayment") && payment["afg_reasonofpayment"] != null ? Convert.ToString(payment["afg_reasonofpayment"]) : string.Empty;
+                    string notes = payment.Contains("afg_note") && payment["afg_note"] != null ? Convert.ToString(payment["afg_note"]) : string.Empty;
+                    string bankName = payment.Contains("afg_bankrelation") && payment["afg_bankrelation"] != null ? ((EntityReference)payment["afg_bankrelation"]).Name : string.Empty;
+                    string routingNumber = payment.Contains("br.afg_routingnumber") && payment["br.afg_routingnumber"] != null ? Convert.ToString(((AliasedValue)payment["br.afg_routingnumber"]).Value) : string.Empty;
+                    string accountNumber = payment.Contains("br.tf_accountno") && payment["br.tf_accountno"] != null ? Convert.ToString(((AliasedValue)payment["br.tf_accountno"]).Value) : string.Empty;
+                    string branch = payment.Contains("br.tf_branchname") && payment["br.tf_branchname"] != null ? Convert.ToString(((AliasedValue)payment["br.tf_branchname"]).Value) : string.Empty;
+                    string customerId = payment.Contains("acc.afg_lplus_customerid") && payment["acc.afg_lplus_customerid"] != null ? Convert.ToString(((AliasedValue)payment["acc.afg_lplus_customerid"]).Value) : string.Empty;
+                    string contractNumber = payment.Contains("opp.afg_lplusid") && payment["opp.afg_lplusid"] != null ? Convert.ToString(((AliasedValue)payment["opp.afg_lplusid"]).Value) : string.Empty;
 
                     NACHAEntry entry = new NACHAEntry(paymentName, accountName, customerId, paymentType, amount, reasonOfPayment, notes, bankName, routingNumber, accountNumber, branch, contractNumber);
                     if (entry != null)

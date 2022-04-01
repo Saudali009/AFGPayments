@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFG Console App", "ACH Cons
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "System.AFG.Payments.Workflows", "System.AFG.Payments.Workflows\System.AFG.Payments.Workflows.csproj", "{558D5E6D-341D-490E-8C99-067A1F476533}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChoETL.NACHA", "C:\Users\dell\Downloads\ChoETL.NACHA-master\ChoETL.NACHA-master\ChoETL.NACHA\ChoETL.NACHA.csproj", "{8BDB0366-75FD-452F-9AF0-E3ED320575B7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChoETL.NACHA", "ChoETL.NACHA\ChoETL.NACHA.csproj", "{8BDB0366-75FD-452F-9AF0-E3ED320575B7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

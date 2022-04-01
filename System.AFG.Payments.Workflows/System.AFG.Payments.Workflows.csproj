@@ -105,7 +105,7 @@
     <Content Include="ILMergeOrder.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="C:\Users\dell\Downloads\ChoETL.NACHA-master\ChoETL.NACHA-master\ChoETL.NACHA\ChoETL.NACHA.csproj">
+    <ProjectReference Include="..\ChoETL.NACHA\ChoETL.NACHA.csproj">
       <Project>{8bdb0366-75fd-452f-9af0-e3ed320575b7}</Project>
       <Name>ChoETL.NACHA</Name>
     </ProjectReference>
