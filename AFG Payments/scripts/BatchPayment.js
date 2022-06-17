@@ -143,3 +143,8 @@ function getBatchLimitAmount() {
         }
     }
 }
+
+function redirectToBatches() {
+    var dynamicsClient = Xrm.Page.context.getClientUrl();
+    window.open(dynamicsClient+ "/main.aspx?appid=3cbb2b43-2282-43e3-8982-1aff105bba1f&forceUCI=1&pagetype=entitylist&etn=afg_batch", "_self");
+}

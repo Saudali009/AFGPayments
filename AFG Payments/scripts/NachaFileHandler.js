@@ -1,5 +1,6 @@
 ﻿function downloadNACHAFile() {    
     try {
+        Xrm.Utility.showProgressIndicator("Downloading NACHA File Please Wait..");
         var batchId = Xrm.Page.data.entity.getId().replace('{', '').replace('}', '');
         getDocumentDetails(batchId);
         createNACHADownloadLog(batchId, 1);
@@ -7,6 +8,7 @@
     catch (error) {
         createNACHADownloadLog(batchId, 2);
         console.log("Error occured while calling an action: " + error.message);
+        Xrm.Utility.closeProgressIndicator();
     }
 }
 
@@ -40,18 +42,22 @@ function getDocumentDetails(annotationId) {
                 var documentbody = result.value[0]["documentbody"];
                 var filename = result.value[0]["filename"];
                 if (documentbody != null && filename != null) {
+                    Xrm.Utility.closeProgressIndicator();
                     downloadFileInBrowser(filename, documentbody);
                 } else {
                     createNACHADownloadLog(batchId, 2);
+                    Xrm.Utility.closeProgressIndicator();
                     Xrm.Utility.alertDialog("File corrupted, please try again.");
                 }
             } else {
                 createNACHADownloadLog(batchId, 2);
+                Xrm.Utility.closeProgressIndicator();
                 Xrm.Utility.alertDialog("Unable to find NACHA file, please create again.");
             }
 
         } else {
             createNACHADownloadLog(batchId, 2);
+            Xrm.Utility.closeProgressIndicator();
             Xrm.Utility.alertDialog(req.statusText);
         }
     }
@@ -82,6 +88,7 @@ function createNACHADownloadLog(batchId, status) {
         },
         function (error) {
             console.log("Exception occured while creating a log" + error.message);
+            Xrm.Utility.closeProgressIndicator();
         }
     );
 }
