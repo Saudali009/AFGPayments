@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "System.AFG.Payments.Workflo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChoETL.NACHA", "ChoETL.NACHA\ChoETL.NACHA.csproj", "{8BDB0366-75FD-452F-9AF0-E3ED320575B7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "System.AFG.Payments.GIACTAccountVerification", "System.AFG.Payments.GIACTAccountVerification\System.AFG.Payments.GIACTAccountVerification.csproj", "{FDD142E1-139C-4F0C-98F3-18CB4882B84A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{8BDB0366-75FD-452F-9AF0-E3ED320575B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8BDB0366-75FD-452F-9AF0-E3ED320575B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8BDB0366-75FD-452F-9AF0-E3ED320575B7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDD142E1-139C-4F0C-98F3-18CB4882B84A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDD142E1-139C-4F0C-98F3-18CB4882B84A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDD142E1-139C-4F0C-98F3-18CB4882B84A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDD142E1-139C-4F0C-98F3-18CB4882B84A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
