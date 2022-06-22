@@ -94,6 +94,7 @@
     <Compile Include="NACHAEntry.cs" />
     <Compile Include="NACHAFileHandlerWorkflow.cs" />
     <Compile Include="PaymentAttributes.cs" />
+    <Compile Include="PaymentTypeEnum.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -10,7 +10,7 @@ namespace System.AFG.Payments.Workflows
 {
     public class CRMDataRetrievalHandler
     {
-        public static EntityCollection GetNACHAConfiguration(ITracingService tracingService, IOrganizationService orgService, int bankCode)
+        public static EntityCollection GetNACHAConfiguration(ITracingService tracingService, IOrganizationService orgService, int bankCode, int paymentType)
         {
             string nachaConfigXml = @"<fetch top='1'>
               <entity name='afg_nachafile'>
@@ -24,17 +24,18 @@ namespace System.AFG.Payments.Workflows
                 <filter>
                   <condition attribute='statecode' operator='eq' value='0' />
                   <condition attribute='afg_bankname' operator='eq' value='{0}' />
+                  <condition attribute='afg_paymenttype' operator='eq' value='{1}' />
                 </filter>
                 <order attribute='createdon' descending='true' />
               </entity>
             </fetch>";
-            nachaConfigXml = string.Format(nachaConfigXml, bankCode);
+            nachaConfigXml = string.Format(nachaConfigXml, bankCode, paymentType);
             EntityCollection collection = orgService.RetrieveMultiple(new FetchExpression(nachaConfigXml));
             return collection;
         }
         public static Entity GetBatchDetails(ITracingService tracingService, IOrganizationService orgService, Guid batchId)
         {
-            Entity batch = orgService.Retrieve("afg_batch", batchId, new ColumnSet(new string[] { "afg_batchnumber", "afg_bank" }));
+            Entity batch = orgService.Retrieve("afg_batch", batchId, new ColumnSet(new string[] { "afg_batchnumber", "afg_bank", "afg_paymenttype" }));
             return batch;
         }
         public static EntityCollection GetBatchedPayments(ITracingService tracingService, IOrganizationService orgService, Guid batchId)
